@@ -1,92 +1,64 @@
-import { useState, useEffect } from 'react';
-import toast, { Toaster } from 'react-hot-toast';
-import SearchBar from '../SearchBar/SearchBar';
-import MovieGrid from '../MovieGrid/MovieGrid';
-import Loader from '../Loader/Loader';
-import ErrorMessage from '../ErrorMessage/ErrorMessage';
-import MovieModal from '../MovieModal/MovieModal';
-import * as moviesApi from '../../services/moviesService';
+import css from "./App.module.css";
+import ErrorMessage from "../ErrorMessage/ErrorMessage";
+import Loader from "../Loader/Loader";
+import MovieGrid from "../MovieGrid/MovieGrid";
+import MovieModal from "../MovieModal/MovieModal";
+import SearchBar from "../SearchBar/SearchBar";
+import { fetchMovies } from "../../services/moviesService";
+import type { Movie } from "../../types/movie";
 
-interface Movie {
-  id: number;
-  title: string;
-  poster_path: string | null;
-}
+import toast, { Toaster } from "react-hot-toast";
+import { useState } from "react";
 
-interface MovieDetails {
-  id: number;
-  title: string;
-  overview: string;
-  release_date: string;
-  vote_average: number;
-  backdrop_path: string | null;
-}
 
-export default function App(): JSX.Element {
+
+export default function App() {
   const [movies, setMovies] = useState<Movie[]>([]);
-  const [query, setQuery] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [error, setError] = useState<Error | null>(null);
-  const [selectedMovie, setSelectedMovie] = useState<MovieDetails | null>(null);
-
-  useEffect(() => {
-    if (!query) return;
-
-    const fetchMovies = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const results = await moviesApi.fetchMovies(query);
-        setMovies(results);
-
-        if (results.length === 0) {
-          toast.error('No movies found for your request.');
-        }
-      } catch (err) {
-        setError(err as Error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchMovies();
-  }, [query]);
-
-  const handleSearchSubmit = (searchQuery: string) => {
-    setQuery(searchQuery);
-    setMovies([]);
-  };
-
-  const handleMovieSelect = async (movieId: number) => {
-    try {
-      const movieDetails = await moviesApi.getMovieDetails(movieId);
-      setSelectedMovie(movieDetails);
-    } catch (err) {
-      toast.error('Failed to fetch movie details.');
-    }
-  };
-
-  const handleCloseModal = () => {
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasError, setHasError] = useState(false);
+  const [isMovieModalOpen, setIsMovieModalOpen] = useState(false);
+  const openModal = () => setIsMovieModalOpen(true);
+  const closeModal = () => {
+    setIsMovieModalOpen(false);
     setSelectedMovie(null);
   };
 
-  let content: JSX.Element | null = null;
-  if (isLoading) {
-    content = <Loader />;
-  } else if (error) {
-    content = <ErrorMessage />;
-  } else if (movies.length > 0) {
-    content = <MovieGrid onSelect={handleMovieSelect} movies={movies} />;
-  }
+  const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
+  const handleSelectMovie = (movie: Movie) => {
+    setSelectedMovie(movie);
+    openModal();
+  };
+
+  const handleSubmit = async (query: string) => {
+    setMovies([]);
+    setIsLoading(true);
+    setHasError(false);
+    try {
+      const fetchedMovies = await fetchMovies(query);
+      if (fetchedMovies.length === 0) {
+        toast.error("No movies found for your request.");
+        return;
+      }
+      setMovies(fetchedMovies);
+    } catch {
+      setHasError(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
   return (
-    <>
+    <div className={css.app}>
       <Toaster position="top-right" />
-      <SearchBar onSubmit={handleSearchSubmit} />
-      <main>
-        {content}
-      </main>
-      {selectedMovie && <MovieModal movie={selectedMovie} onClose={handleCloseModal} />}
-    </>
+      <SearchBar onSubmit={handleSubmit} />
+      {isLoading && <Loader />}
+      {hasError && <ErrorMessage />}
+      {!isLoading && !hasError && movies.length > 0 && (
+        <MovieGrid onSelect={handleSelectMovie} movies={movies} />
+      )}
+      {isMovieModalOpen && selectedMovie && (
+        <MovieModal movie={selectedMovie} onClose={closeModal} />
+      )}
+    </div>
   );
 }
