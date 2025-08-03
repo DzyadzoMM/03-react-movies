@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import toast, { Toaster } from 'react-hot-toast';
-
 import SearchBar from '../SearchBar/SearchBar';
 import MovieGrid from '../MovieGrid/MovieGrid';
 import Loader from '../Loader/Loader';
@@ -37,7 +36,7 @@ export default function App(): JSX.Element {
       setIsLoading(true);
       setError(null);
       try {
-        const results = await moviesApi.searchMovies(query);
+        const results = await moviesApi.fetchMovies(query);
         setMovies(results);
 
         if (results.length === 0) {
